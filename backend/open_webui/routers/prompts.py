@@ -11,6 +11,7 @@ from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.access_control import has_access, has_permission
 from open_webui.config import BYPASS_ADMIN_ACCESS_CONTROL
+from open_webui.utils.prompt_usage_logger import log_prompt_usage
 
 router = APIRouter()
 
@@ -87,6 +88,7 @@ async def get_prompt_by_command(command: str, user=Depends(get_verified_user)):
             or prompt.user_id == user.id
             or has_access(user.id, "read", prompt.access_control)
         ):
+            log_prompt_usage(prompt.command, getattr(user, "email", None))
             return prompt
     else:
         raise HTTPException(
