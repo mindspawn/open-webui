@@ -731,6 +731,11 @@ AUDIT_EXCLUDED_PATHS = os.getenv("AUDIT_EXCLUDED_PATHS", "/chats,/chat,/folders"
 AUDIT_EXCLUDED_PATHS = [path.strip() for path in AUDIT_EXCLUDED_PATHS]
 AUDIT_EXCLUDED_PATHS = [path.lstrip("/") for path in AUDIT_EXCLUDED_PATHS]
 
+####################################
+# PROMPT USAGE LOGGING
+####################################
+PROMPT_USAGE_LOGS_FILE_PATH = f"{DATA_DIR}/prompt_usage.log"
+
 
 ####################################
 # OPENTELEMETRY

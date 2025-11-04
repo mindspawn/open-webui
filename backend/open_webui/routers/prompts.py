@@ -1,3 +1,6 @@
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
@@ -6,11 +9,13 @@ from open_webui.models.prompts import (
     PromptUserResponse,
     PromptModel,
     Prompts,
+    PromptUsageLogForm,
 )
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_admin_user, get_verified_user
 from open_webui.utils.access_control import has_access, has_permission
 from open_webui.config import BYPASS_ADMIN_ACCESS_CONTROL
+from open_webui.env import PROMPT_USAGE_LOGS_FILE_PATH
 
 router = APIRouter()
 
@@ -160,3 +165,53 @@ async def delete_prompt_by_command(command: str, user=Depends(get_verified_user)
 
     result = Prompts.delete_prompt_by_command(f"/{command}")
     return result
+
+
+############################
+# LogPromptUsage
+############################
+
+
+@router.post("/usage/log", status_code=status.HTTP_204_NO_CONTENT)
+async def log_prompt_usage(
+    form_data: PromptUsageLogForm,
+    user=Depends(get_verified_user),
+):
+    prompt_name = form_data.title or form_data.command
+
+    if not prompt_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.DEFAULT("Prompt name is required"),
+        )
+
+    user_identifier = (
+        user.email.split("@")[0]
+        if getattr(user, "email", None) and "@" in user.email
+        else user.id
+    )
+
+    timestamp = (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+    log_entry = {
+        "timestamp": timestamp,
+        "prompt_name": prompt_name,
+        "user_id": user_identifier,
+    }
+
+    log_path = Path(PROMPT_USAGE_LOGS_FILE_PATH)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(json.dumps(log_entry) + "\n")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ERROR_MESSAGES.DEFAULT(str(exc)),
+        )

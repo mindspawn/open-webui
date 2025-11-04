@@ -7,6 +7,11 @@ type PromptItem = {
 	access_control?: null | object;
 };
 
+type PromptUsagePayload = {
+	command: string;
+	title?: string;
+};
+
 export const createNewPrompt = async (token: string, prompt: PromptItem) => {
 	let error = null;
 
@@ -201,4 +206,22 @@ export const deletePromptByCommand = async (token: string, command: string) => {
 	}
 
 	return res;
+};
+
+export const logPromptUsage = async (token: string, payload: PromptUsagePayload) => {
+	if (!token) {
+		return;
+	}
+
+	await fetch(`${WEBUI_API_BASE_URL}/prompts/usage/log`, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			authorization: `Bearer ${token}`
+		},
+		body: JSON.stringify(payload)
+	}).catch((err) => {
+		console.error(err);
+	});
 };

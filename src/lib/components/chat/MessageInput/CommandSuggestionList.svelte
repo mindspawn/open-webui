@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { knowledge, prompts } from '$lib/stores';
 
-	import { getPrompts } from '$lib/apis/prompts';
+	import { getPrompts, logPromptUsage } from '$lib/apis/prompts';
 	import { getKnowledgeBases } from '$lib/apis/knowledge';
 
 	import Prompts from './Commands/Prompts.svelte';
@@ -95,6 +95,12 @@
 
 						if (type === 'prompt') {
 							insertTextHandler(data.content);
+							if (localStorage.token) {
+								logPromptUsage(localStorage.token, {
+									command: data.command,
+									title: data.title
+								}).catch((err) => console.error(err));
+							}
 						}
 					}}
 				/>

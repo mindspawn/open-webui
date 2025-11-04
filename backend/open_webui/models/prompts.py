@@ -69,6 +69,11 @@ class PromptForm(BaseModel):
     access_control: Optional[dict] = None
 
 
+class PromptUsageLogForm(BaseModel):
+    command: str
+    title: Optional[str] = None
+
+
 class PromptsTable:
     def insert_new_prompt(
         self, user_id: str, form_data: PromptForm
