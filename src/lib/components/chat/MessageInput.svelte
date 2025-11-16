@@ -627,8 +627,21 @@
 		}
 	};
 
-	const inputFilesHandler = async (inputFiles) => {
-		console.log('Input files handler called with:', inputFiles);
+const shouldForceFullContext = (file) => {
+	const type = file?.type?.toLowerCase() ?? '';
+	const name = file?.name?.toLowerCase() ?? '';
+	return (
+		type === 'text/html' ||
+		type === 'text/plain' ||
+		name.endsWith('.html') ||
+		name.endsWith('.htm') ||
+		name.endsWith('.txt')
+	);
+};
+
+const inputFilesHandler = async (inputFiles, options = {}) => {
+	const { fromDragAndDrop = false } = options;
+	console.log('Input files handler called with:', inputFiles);
 
 		if (
 			($config?.file?.max_count ?? null) !== null &&
@@ -724,7 +737,8 @@
 				};
 				reader.readAsDataURL(file['type'] === 'image/heic' ? await convertHeicToJpeg(file) : file);
 			} else {
-				uploadFileHandler(file);
+				const enableFullContext = fromDragAndDrop && shouldForceFullContext(file);
+				uploadFileHandler(file, enableFullContext);
 			}
 		});
 	};
@@ -752,7 +766,7 @@
 			const inputFiles = Array.from(e.dataTransfer?.files);
 			if (inputFiles && inputFiles.length > 0) {
 				console.log(inputFiles);
-				inputFilesHandler(inputFiles);
+				inputFilesHandler(inputFiles, { fromDragAndDrop: true });
 			}
 		}
 
