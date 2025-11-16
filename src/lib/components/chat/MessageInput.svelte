@@ -81,6 +81,17 @@
 	import Knobs from '../icons/Knobs.svelte';
 	import ValvesModal from '../workspace/common/ValvesModal.svelte';
 
+	declare global {
+		interface Window {
+			openWebui?: {
+				setFocusedRetrieval?: (enabled: boolean) => void;
+				isFocusedRetrievalEnabled?: () => boolean;
+			};
+		}
+	}
+
+	type FileContextMode = 'full' | undefined;
+
 	const i18n = getContext('i18n');
 
 	export let onChange: Function = () => {};
@@ -118,6 +129,8 @@
 	let selectedValvesType = 'tool'; // 'tool' or 'function'
 	let selectedValvesItemId = null;
 	let integrationsMenuCloseOnOutsideClick = true;
+	let forcedFileContext: FileContextMode = undefined;
+	let cleanupFocusedRetrievalBridge = () => {};
 
 	$: if (!showValvesModal) {
 		integrationsMenuCloseOnOutsideClick = true;
@@ -483,6 +496,46 @@
 		});
 	};
 
+	const registerFocusedRetrievalBridge = () => {
+		if (typeof window === 'undefined') {
+			return () => {};
+		}
+
+		window.openWebui = window.openWebui ?? {};
+		window.openWebui.setFocusedRetrieval = (enabled: boolean) => {
+			forcedFileContext = enabled ? 'full' : undefined;
+		};
+		window.openWebui.isFocusedRetrievalEnabled = () => forcedFileContext === 'full';
+
+		return () => {
+			if (window.openWebui) {
+				delete window.openWebui.setFocusedRetrieval;
+				delete window.openWebui.isFocusedRetrievalEnabled;
+			}
+		};
+	};
+
+	const resolveFileContext = (context?: FileContextMode): FileContextMode => context ?? forcedFileContext;
+
+	const OPENWEBUI_CONTEXT_MIME_TYPES = [
+		'application/openwebui-context',
+		'text/openwebui-context'
+	] as const;
+
+	const readContextFromDataTransfer = (dataTransfer: DataTransfer | null): FileContextMode => {
+		if (!dataTransfer) return undefined;
+
+		for (const type of OPENWEBUI_CONTEXT_MIME_TYPES) {
+			const payload = dataTransfer.getData(type);
+
+			if (payload) {
+				return payload.toLowerCase() === 'full' ? 'full' : undefined;
+			}
+		}
+
+		return undefined;
+	};
+
 	const screenCaptureHandler = async () => {
 		try {
 			// Request screen media
@@ -627,8 +680,9 @@
 		}
 	};
 
-	const inputFilesHandler = async (inputFiles) => {
+	const inputFilesHandler = async (inputFiles, options: { context?: FileContextMode } = {}) => {
 		console.log('Input files handler called with:', inputFiles);
+		const resolvedContext = resolveFileContext(options.context);
 
 		if (
 			($config?.file?.max_count ?? null) !== null &&
@@ -724,7 +778,7 @@
 				};
 				reader.readAsDataURL(file['type'] === 'image/heic' ? await convertHeicToJpeg(file) : file);
 			} else {
-				uploadFileHandler(file);
+				uploadFileHandler(file, resolvedContext === 'full');
 			}
 		});
 	};
@@ -747,12 +801,14 @@
 	const onDrop = async (e) => {
 		e.preventDefault();
 		console.log(e);
+		const eventContext = readContextFromDataTransfer(e.dataTransfer);
+		const effectiveContext = resolveFileContext(eventContext);
 
 		if (e.dataTransfer?.files) {
 			const inputFiles = Array.from(e.dataTransfer?.files);
 			if (inputFiles && inputFiles.length > 0) {
 				console.log(inputFiles);
-				inputFilesHandler(inputFiles);
+				inputFilesHandler(inputFiles, { context: effectiveContext });
 			}
 		}
 
@@ -905,6 +961,8 @@
 
 		await tick();
 
+		cleanupFocusedRetrievalBridge = registerFocusedRetrievalBridge();
+
 		const dropzoneElement = document.getElementById('chat-container');
 
 		dropzoneElement?.addEventListener('dragover', onDragOver);
@@ -929,6 +987,8 @@
 			dropzoneElement?.removeEventListener('drop', onDrop);
 			dropzoneElement?.removeEventListener('dragleave', onDragLeave);
 		}
+
+		cleanupFocusedRetrievalBridge();
 	});
 </script>
 
