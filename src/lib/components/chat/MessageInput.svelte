@@ -630,12 +630,14 @@
 const shouldForceFullContext = (file) => {
 	const type = file?.type?.toLowerCase() ?? '';
 	const name = file?.name?.toLowerCase() ?? '';
+	const sizeOk = (file?.size ?? 0) <= 512 * 1024;
 	return (
-		type === 'text/html' ||
-		type === 'text/plain' ||
-		name.endsWith('.html') ||
-		name.endsWith('.htm') ||
-		name.endsWith('.txt')
+		sizeOk &&
+		(type === 'text/html' ||
+			type === 'text/plain' ||
+			name.endsWith('.html') ||
+			name.endsWith('.htm') ||
+			name.endsWith('.txt'))
 	);
 };
 
